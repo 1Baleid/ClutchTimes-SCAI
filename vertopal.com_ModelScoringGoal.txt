@@ -1,0 +1,247 @@
+
+
+    import numpy as np
+    import pandas as pd
+    import time
+
+    from sklearn.model_selection import train_test_split
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import roc_auc_score, brier_score_loss
+
+    ###############################################################################
+    # 1. SIMULATE OR LOAD DATA
+    ###############################################################################
+    def simulate_tracking_data(num_samples=1000, seed=42):
+        """
+        Simulate tracking data for demonstration purposes.
+        Each sample includes positions of:
+            - The ball (x_b, y_b)
+            - Up to 3 attackers (x_a1, y_a1, x_a2, y_a2, x_a3, y_a3)
+            - Up to 3 defenders (x_d1, y_d1, x_d2, y_d2, x_d3, y_d3)
+        plus a label: 'goal_next_5s' indicating whether a goal happened in the next 5s.
+        """
+        np.random.seed(seed)
+
+        # For simplicity, define the pitch dimensions: 105m (length) x 68m (width)
+        # We'll just randomly place players and the ball.
+        data = []
+        for _ in range(num_samples):
+            # Random ball position on the field
+            x_b = np.random.rand() * 105
+            y_b = np.random.rand() * 68
+
+            # Random positions for attackers and defenders
+            # (In real data, you would have up to 22 players, but let's keep it small)
+            attackers = np.random.rand(3, 2) * [105, 68]
+            defenders = np.random.rand(3, 2) * [105, 68]
+
+            # A very naive "label" for demonstration:
+            # If ball is close to the goal (x>90) and not many defenders near it, label = 1
+            # else 0.
+            defenders_near_ball = 0
+            for dpos in defenders:
+                dist = np.linalg.norm([x_b - dpos[0], y_b - dpos[1]])
+                if dist < 10:
+                    defenders_near_ball += 1
+
+            # Arbitrary "goal" rule for generating labels:
+            # If the ball is within 20m of goal line (x>85) and fewer than 2 defenders are within 10m, then label=1
+            label = int((x_b > 85) and (defenders_near_ball < 2))
+
+            data.append([
+                x_b, y_b,
+                attackers[0,0], attackers[0,1],
+                attackers[1,0], attackers[1,1],
+                attackers[2,0], attackers[2,1],
+                defenders[0,0], defenders[0,1],
+                defenders[1,0], defenders[1,1],
+                defenders[2,0], defenders[2,1],
+                label
+            ])
+
+        columns = [
+            'x_ball', 'y_ball',
+            'x_a1','y_a1','x_a2','y_a2','x_a3','y_a3',
+            'x_d1','y_d1','x_d2','y_d2','x_d3','y_d3',
+            'goal_next_5s'
+        ]
+
+        df = pd.DataFrame(data, columns=columns)
+        return df
+
+    ###############################################################################
+    # 2. FEATURE ENGINEERING
+    ###############################################################################
+    def extract_features(df):
+        """
+        Extract features that might be predictive of a goal happening soon.
+        For demonstration, we keep it simple:
+          - distance_to_goal
+          - # defenders within 10m of ball
+          - average distance of attackers to the ball
+        """
+        # Coordinates of the center of the goal (we'll treat the center of the goal line at x=105, y=34)
+        goal_x, goal_y = 105.0, 34.0
+
+        # Distance to goal
+        df['distance_to_goal'] = np.sqrt((goal_x - df['x_ball'])**2 + (goal_y - df['y_ball'])**2)
+
+        # Count defenders near the ball
+        def close_defenders(row):
+            count = 0
+            ball_pos = np.array([row['x_ball'], row['y_ball']])
+            for i in range(1,4):
+                x_d = row[f'x_d{i}']
+                y_d = row[f'y_d{i}']
+                dist = np.linalg.norm(ball_pos - np.array([x_d, y_d]))
+                if dist < 10:
+                    count += 1
+            return count
+        df['defenders_close'] = df.apply(close_defenders, axis=1)
+
+        # Average distance of attackers to the ball
+        def avg_attacker_dist(row):
+            ball_pos = np.array([row['x_ball'], row['y_ball']])
+            dists = []
+            for i in range(1,4):
+                x_a = row[f'x_a{i}']
+                y_a = row[f'y_a{i}']
+                dist = np.linalg.norm(ball_pos - np.array([x_a, y_a]))
+                dists.append(dist)
+            return np.mean(dists)
+        df['avg_attacker_dist'] = df.apply(avg_attacker_dist, axis=1)
+
+        return df
+
+    ###############################################################################
+    # 3. TRAINING A MODEL (OFFLINE PHASE)
+    ###############################################################################
+    def train_model(df):
+        """
+        Train a simple logistic regression model to predict 'goal_next_5s'
+        using the engineered features.
+        """
+        # Create the feature DataFrame
+        df_feat = extract_features(df.copy())
+
+        feature_cols = ['distance_to_goal', 'defenders_close', 'avg_attacker_dist']
+        X = df_feat[feature_cols].values
+        y = df_feat['goal_next_5s'].values
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        model = LogisticRegression()
+        model.fit(X_train, y_train)
+
+        # Evaluate
+        y_pred_proba = model.predict_proba(X_test)[:, 1]
+        auc = roc_auc_score(y_test, y_pred_proba)
+        brier = brier_score_loss(y_test, y_pred_proba)
+
+        print("Model performance on test set:")
+        print(f"  AUC = {auc:.3f}")
+        print(f"  Brier Score = {brier:.3f}")
+
+        return model
+
+    ###############################################################################
+    # 4. REAL-TIME (OR LIVE) LOOP
+    ###############################################################################
+    # Pretend we have a camera control library
+    def set_camera_focus(mode):
+        """
+        Dummy function that would set or move the camera in a real system.
+        """
+        print(f"[CAMERA] Switching to focus mode: {mode}")
+
+    def start_highlight_recording():
+        """
+        Dummy function to start recording a highlight.
+        """
+        print("[CAMERA] Starting highlight recording...")
+
+    def run_real_time_inference(model, threshold=0.5, num_iterations=20):
+        """
+        Simulate a "live" scenario: generate new data points,
+        compute features, predict probability, and if above threshold,
+        trigger camera action.
+
+        :param model: trained ML model
+        :param threshold: probability threshold for triggering camera
+        :param num_iterations: how many "frames" or "time steps" to simulate
+        """
+        for i in range(num_iterations):
+            # In real life, you'd get these from a live tracker at time t
+            # Here, just randomly generate one record
+            df_live = simulate_tracking_data(num_samples=1, seed=int(time.time()*1000) % 999999)
+
+            # Extract features
+            df_live = extract_features(df_live)
+
+            # Build the feature vector
+            feature_cols = ['distance_to_goal', 'defenders_close', 'avg_attacker_dist']
+            X_live = df_live[feature_cols].values
+
+            # Predict
+            prob_danger = model.predict_proba(X_live)[:, 1]  # shape = (1, )
+            p = prob_danger[0]
+
+            print(f"\nTime step {i+1}: Probability of goal/danger in next 5s = {p:.3f}")
+
+            # Trigger camera if above threshold
+            if p > threshold:
+                set_camera_focus('close-up')
+                start_highlight_recording()
+
+            # Sleep to emulate real-time behavior
+            time.sleep(0.5)
+
+    ###############################################################################
+    # 5. MAIN EXECUTION
+    ###############################################################################
+    if __name__ == "__main__":
+        # Step 1: Generate or load your dataset
+        df_data = simulate_tracking_data(num_samples=2000)  # "historical" data
+        # In practice, you'd load real tracking data from your database or CSV
+
+        # Step 2: Train the model on the historical data
+        print("Training model...")
+        trained_model = train_model(df_data)
+
+        # Step 3: Run a "real-time" inference loop
+        print("\nEntering real-time inference simulation...\n")
+        run_real_time_inference(trained_model, threshold=0.3, num_iterations=10)
+
+    Training model...
+    Model performance on test set:
+      AUC = 0.983
+      Brier Score = 0.039
+
+    Entering real-time inference simulation...
+
+
+    Time step 1: Probability of goal/danger in next 5s = 0.000
+
+    Time step 2: Probability of goal/danger in next 5s = 0.995
+    [CAMERA] Switching to focus mode: close-up
+    [CAMERA] Starting highlight recording...
+
+    Time step 3: Probability of goal/danger in next 5s = 0.974
+    [CAMERA] Switching to focus mode: close-up
+    [CAMERA] Starting highlight recording...
+
+    Time step 4: Probability of goal/danger in next 5s = 0.000
+
+    Time step 5: Probability of goal/danger in next 5s = 0.000
+
+    Time step 6: Probability of goal/danger in next 5s = 0.000
+
+    Time step 7: Probability of goal/danger in next 5s = 0.783
+    [CAMERA] Switching to focus mode: close-up
+    [CAMERA] Starting highlight recording...
+
+    Time step 8: Probability of goal/danger in next 5s = 0.001
+
+    Time step 9: Probability of goal/danger in next 5s = 0.004
+
+    Time step 10: Probability of goal/danger in next 5s = 0.174
