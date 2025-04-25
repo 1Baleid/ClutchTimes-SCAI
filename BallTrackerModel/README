@@ -1,1 +1,31 @@
+# BallTrackerModel
 
+A 2D soccer-ball tracking pipeline that processes video frames, detects the ball, and assigns consistent IDs over time.
+
+## 🔍 Overview
+
+This module implements a real-time “detect-then-track” approach:
+
+1. **Detection**: Uses a YOLOv8 model fine-tuned on a soccer-ball dataset (`model_ball.pt`) to localize the ball in each frame.  
+2. **Tracking**: Associates detections across frames to maintain a single “ball” identity and smooth out missing detections.  
+
+Results are visualized by drawing bounding boxes and confidence scores on each frame and saving an annotated video.
+
+## 📂 Files
+
+- `BallTrackerNoteBook.ipynb` – Jupyter notebook demonstrating:
+  - Loading `model_ball.pt`
+  - Running inference on a sample video
+  - Visualizing detections & exporting annotated video  
+- `model_ball.pt` – Trained YOLOv8 weights for ball detection.  
+- `README` – (this file).  
+
+## ⚙️ Requirements
+
+- Python 3.8+  
+- `ultralytics` (YOLOv8)  
+- `opencv-python-headless`  
+- `numpy`  
+
+```bash
+pip install ultralytics opencv-python-headless numpy
