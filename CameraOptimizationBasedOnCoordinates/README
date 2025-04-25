@@ -1,1 +1,32 @@
+# CameraOptimizationBasedOnCoordinates
+
+A demonstration of how to trigger camera control actions (e.g. zoom, pan) based on on-field coordinates of the ball and players.
+
+## 🔍 Overview
+
+Given streaming (x,y) coordinates of tracked objects:
+
+1. **Compute zones of interest** (e.g. ball entering penalty area).  
+2. **Apply decision rules** to choose camera operations (e.g. zoom when ball is near goal).  
+3. **Output commands** or simulation logs showing when the camera would pan/zoom.
+
+This notebook shows how a live analytics system could automatically direct camera focus.
+
+## 📂 Files
+
+- `CameraOptimizationBasedOnCoordinatesipynb.ipynb` – Notebook with:
+  - Sample coordinate data (CSV)  
+  - Homography or field-mapping logic  
+  - Camera-action decision functions  
+- `Random_Snapshots_CSV_Preview.csv` – Example coordinate snapshots.  
+- `README` – (this file).  
+
+## ⚙️ Requirements
+
+- Python 3.8+  
+- `numpy`, `pandas`, `opencv-python`  
+- Jupyter Notebook  
+
+```bash
+pip install numpy pandas opencv-python
 
