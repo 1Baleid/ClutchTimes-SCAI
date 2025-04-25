@@ -1,1 +1,32 @@
+# FaceRecognition
 
+A proof-of-concept for detecting and recognizing faces of players or staff in broadcast video.
+
+## 🔍 Overview
+
+This module uses a two-stage pipeline:
+
+1. **Face Detection**: Locate faces in each video frame.  
+2. **Face Recognition**: Match detected faces against a gallery of known profiles.  
+
+It outputs annotated frames with player names or IDs.
+
+## 📂 Files
+
+- `FaceRecognition.ipynb` – Notebook that:
+  - Loads face detection & embedding models  
+  - Reads a set of “Profiles” images to build a gallery  
+  - Processes video frames to recognize faces  
+- `Profiles/` – Reference images of known individuals (one subfolder per identity).  
+- `Reactions/` – Sample output snapshots (annotated faces).  
+- `README` – (this file).  
+
+## ⚙️ Requirements
+
+- Python 3.8+  
+- `face_recognition` or `dlib`  
+- `opencv-python`  
+- `numpy`  
+
+```bash
+pip install face_recognition opencv-python numpy
